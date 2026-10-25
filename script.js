@@ -1,95 +1,144 @@
 /**
- * ARCANE NATURE - REMASTERED ENGINE
- * Senior Game Dev Architecture (High-Visibility Mobile Edition)
+ * ARCANE NATURE ENGINE - ELITE RPG EDITION
+ * Senior Game Engine & Audio Synth Architecture
  */
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const fpsDisplay = document.getElementById('fps-display');
 
 ctx.imageSmoothingEnabled = false;
 
-// --- CONFIGURAÇÕES DE ESCALA E MUNDO ---
-const TILE_SIZE = 32; // Aumentado para dar mais robustez visual
-const MAP_COLS = 28;
-const MAP_ROWS = 28;
-const WORLD_WIDTH = MAP_COLS * TILE_SIZE;
-const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
+// MÁQUINA DE ESTADOS E CONFIGURAÇÕES
+let gameState = 'CUTSCENE'; // 'CUTSCENE', 'MENU', 'SETTINGS', 'PLAYING'
+let currentZone = 'VILLAGE'; // 'VILLAGE', 'FOREST'
 
-let screenShakeTimer = 0;
-let screenShakeIntensity = 0;
+const settings = { sound: true, particles: true, shake: true };
 
-const wind = {
-  forceX: 0,
-  time: 0,
-  update() {
-    this.time += 0.025;
-    this.forceX = Math.sin(this.time) * 1.2 + Math.cos(this.time * 1.8) * 0.5;
-  }
-};
+// --- SINTETIZADOR DE ÁUDIO WEB AUDIO API (Sons 8-Bit) ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
 
-const map = [];
-const trees = [];
-const butterflies = [];
-const birds = [];
-const ambientParticles = [];
+function playSound(type) {
+  if (!settings.sound) return;
+  if (!audioCtx) audioCtx = new AudioContext();
 
-function initWorld() {
-  for (let r = 0; r < MAP_ROWS; r++) {
-    const row = [];
-    for (let c = 0; c < MAP_COLS; c++) {
-      if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) {
-        row.push(3); // Borda
-        trees.push({ x: c * TILE_SIZE, y: r * TILE_SIZE });
-      } else if (c >= 12 && c <= 15) {
-        row.push(2); // Caminho de pedra/terra central
-      } else if (Math.random() < 0.09 && r > 2 && r < MAP_ROWS - 2) {
-        row.push(3);
-        trees.push({ x: c * TILE_SIZE, y: r * TILE_SIZE });
-      } else {
-        row.push(Math.random() < 0.2 ? 1 : 0); // 1 = Grama com tufos
-      }
-    }
-    map.push(row);
-  }
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
 
-  // Borboletas grandes e visíveis
-  for (let i = 0; i < 12; i++) {
-    butterflies.push({
-      x: Math.random() * WORLD_WIDTH,
-      y: Math.random() * WORLD_HEIGHT,
-      vx: 0, vy: 0,
-      wingAnim: Math.random() * Math.PI,
-      color: Math.random() > 0.5 ? '#f43f5e' : '#38bdf8'
-    });
-  }
+  const now = audioCtx.currentTime;
 
-  // Pássaros grandes e visíveis
-  for (let i = 0; i < 6; i++) {
-    birds.push({
-      x: Math.random() * (WORLD_WIDTH - 120) + 60,
-      y: Math.random() * (WORLD_HEIGHT - 120) + 60,
-      vx: 0, vy: 0,
-      isFlying: false,
-      wingAnim: 0
-    });
+  if (type === 'step') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.08);
+    osc.start(now); osc.stop(now + 0.08);
+  } else if (type === 'magic') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(800, now + 0.18);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.18);
+    osc.start(now); osc.stop(now + 0.18);
+  } else if (type === 'collect') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.setValueAtTime(600, now + 0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.16);
+    osc.start(now); osc.stop(now + 0.16);
+  } else if (type === 'dialogue') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(220, now);
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.05);
+    osc.start(now); osc.stop(now + 0.05);
   }
 }
-initWorld();
+
+// --- CUTSCENE E NARRATIVA ---
+const storyLines = [
+  "A Vila Solar vive sob a ameaça dos Slimes Corrompidos que habitam a Floresta Mística...",
+  "O portão de saída foi selado para proteger os aldeões de invasões inimigas.",
+  "Fale com o Ancião Eldrin na vila para obter os Cristais Mágicos e desbloquear o mundo aberto."
+];
+let currentLineIndex = 0, currentCharIndex = 0, typewriterTimer = null;
+const cutsceneTextElem = document.getElementById('cutscene-text');
+
+function startTypewriter() {
+  cutsceneTextElem.innerText = "";
+  currentCharIndex = 0;
+  const line = storyLines[currentLineIndex];
+
+  clearInterval(typewriterTimer);
+  typewriterTimer = setInterval(() => {
+    cutsceneTextElem.innerText += line[currentCharIndex];
+    playSound('dialogue');
+    currentCharIndex++;
+    if (currentCharIndex >= line.length) {
+      clearInterval(typewriterTimer);
+      setTimeout(() => {
+        currentLineIndex++;
+        if (currentLineIndex < storyLines.length) startTypewriter();
+        else goToMenu();
+      }, 2500);
+    }
+  }, 40);
+}
+
+function goToMenu() {
+  clearInterval(typewriterTimer);
+  gameState = 'MENU';
+  document.getElementById('cutscene-overlay').classList.add('hidden');
+  document.getElementById('menu-overlay').classList.remove('hidden');
+}
+
+document.getElementById('btn-skip-cutscene').addEventListener('click', goToMenu);
+document.getElementById('btn-start').addEventListener('click', () => {
+  gameState = 'PLAYING';
+  document.getElementById('menu-overlay').classList.add('hidden');
+  document.getElementById('ui-overlay').classList.remove('hidden');
+  document.getElementById('touch-controls').classList.remove('hidden');
+});
+document.getElementById('btn-settings').addEventListener('click', () => {
+  document.getElementById('settings-overlay').classList.remove('hidden');
+});
+document.getElementById('btn-close-settings').addEventListener('click', () => {
+  settings.sound = document.getElementById('setting-sound').checked;
+  settings.particles = document.getElementById('setting-particles').checked;
+  settings.shake = document.getElementById('setting-shake').checked;
+  document.getElementById('settings-overlay').classList.add('hidden');
+});
+
+// --- MUNDO, CICLO DIA/NOITE E MAPA ---
+const TILE_SIZE = 32, MAP_COLS = 28, MAP_ROWS = 28;
+const WORLD_WIDTH = MAP_COLS * TILE_SIZE, WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
+
+const dayNight = {
+  time: 0, cycleDuration: 3600, // 1 minuto por ciclo
+  getPhase() {
+    const progress = (this.time % this.cycleDuration) / this.cycleDuration;
+    if (progress < 0.4) return { name: '🌅 Dia', alpha: 0 };
+    if (progress < 0.5) return { name: '🌇 Pôr do Sol', alpha: 0.35, color: '180, 83, 9' };
+    if (progress < 0.9) return { name: '🌙 Noite', alpha: 0.72, color: '3, 7, 18' };
+    return { name: '🌅 Amanhecer', alpha: 0.3, color: '217, 119, 6' };
+  },
+  update() { this.time++; }
+};
+
+let map = [], trees = [], houses = [], npcs = [], crystals = [], enemies = [], projectiles = [];
+let screenShakeTimer = 0;
 
 const player = {
-  x: 13.5 * TILE_SIZE,
-  y: 13.5 * TILE_SIZE,
-  speed: 2.2,
-  facing: 'down',
-  isMoving: false,
-  walkTimer: 0,
-  wandParticles: [],
+  x: 13.5 * TILE_SIZE, y: 14 * TILE_SIZE,
+  hp: 100, maxHp: 100, speed: 2.2, facing: 'down', isMoving: false, walkTimer: 0,
+  crystalsCollected: 0, questStep: 0, wandParticles: [],
 
   update() {
-    let dx = 0;
-    let dy = 0;
-
+    let dx = 0, dy = 0;
     if (keys.ArrowUp || keys.w)    { dy -= 1; this.facing = 'up'; }
     if (keys.ArrowDown || keys.s)  { dy += 1; this.facing = 'down'; }
     if (keys.ArrowLeft || keys.a)  { dx -= 1; this.facing = 'left'; }
@@ -104,46 +153,92 @@ const player = {
     if (!checkCollision(this.x, ny)) this.y = ny;
 
     this.isMoving = (dx !== 0 || dy !== 0);
-    if (this.isMoving) this.walkTimer += 0.3;
+    if (this.isMoving) {
+      this.walkTimer += 0.3;
+      if (Math.floor(this.walkTimer) % 6 === 0) playSound('step');
+    }
 
-    // Emissão constante de fogo mágico na ponta do cajado
-    const wandX = this.x + (this.facing === 'left' ? -6 : 22);
-    const wandY = this.y - 2;
-
-    this.wandParticles.push({
-      x: wandX + (Math.random() - 0.5) * 4,
-      y: wandY + (Math.random() - 0.5) * 4,
-      vx: (Math.random() - 0.5) * 0.8 + wind.forceX * 0.4,
-      vy: -Math.random() * 1.2 - 0.5,
-      life: 1.0,
-      size: Math.random() * 4 + 2,
-      color: Math.random() > 0.3 ? '#ff5722' : '#ffeb3b'
+    // Coleta de Cristais
+    crystals.forEach((c, index) => {
+      if (!c.collected && Math.hypot(c.x - this.x, c.y - this.y) < 24) {
+        c.collected = true;
+        this.crystalsCollected++;
+        playSound('collect');
+        document.getElementById('inventory-display').innerText = `💎 ${this.crystalsCollected}/3`;
+      }
     });
 
-    for (let i = this.wandParticles.length - 1; i >= 0; i--) {
-      let p = this.wandParticles[i];
-      p.x += p.vx; p.y += p.vy; p.life -= 0.05;
-      if (p.life <= 0) this.wandParticles.splice(i, 1);
+    // Transição de Mapa (Portão do Sul da Vila)
+    if (currentZone === 'VILLAGE' && this.y > (MAP_ROWS - 2) * TILE_SIZE && this.questStep >= 2) {
+      loadForestZone();
     }
   }
 };
 
+function loadVillageZone() {
+  currentZone = 'VILLAGE';
+  map = []; trees = []; houses = []; npcs = []; crystals = []; enemies = [];
+  
+  for (let r = 0; r < MAP_ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < MAP_COLS; c++) {
+      if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) {
+        row.push(3); trees.push({ x: c * TILE_SIZE, y: r * TILE_SIZE });
+      } else if (c >= 12 && c <= 15) { row.push(2); }
+      else { row.push(Math.random() < 0.15 ? 1 : 0); }
+    }
+    map.push(row);
+  }
+
+  houses.push({ x: 8 * TILE_SIZE, y: 10 * TILE_SIZE, w: 3 * TILE_SIZE, h: 3 * TILE_SIZE });
+  npcs.push({ x: 11 * TILE_SIZE, y: 12 * TILE_SIZE, name: "Ancião Eldrin", dialogue: "Mago! Encontre 3 Cristais Mágicos na vila para eu destravar o Portão do Sul." });
+  
+  // Cristais
+  crystals.push({ x: 5 * TILE_SIZE, y: 6 * TILE_SIZE, collected: false });
+  crystals.push({ x: 22 * TILE_SIZE, y: 8 * TILE_SIZE, collected: false });
+  crystals.push({ x: 6 * TILE_SIZE, y: 22 * TILE_SIZE, collected: false });
+}
+
+function loadForestZone() {
+  currentZone = 'FOREST';
+  player.x = 13.5 * TILE_SIZE; player.y = 2 * TILE_SIZE;
+  map = []; trees = []; houses = []; npcs = []; crystals = []; enemies = [];
+
+  for (let r = 0; r < MAP_ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < MAP_COLS; c++) {
+      if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1 || Math.random() < 0.12) {
+        row.push(3); trees.push({ x: c * TILE_SIZE, y: r * TILE_SIZE });
+      } else { row.push(0); }
+    }
+    map.push(row);
+  }
+
+  // Spawn de Inimigos (Slimes Corrompidos)
+  for (let i = 0; i < 8; i++) {
+    enemies.push({
+      x: Math.random() * (WORLD_WIDTH - 200) + 100,
+      y: Math.random() * (WORLD_HEIGHT - 200) + 100,
+      hp: 30, maxHp: 30, speed: 0.9, size: 20
+    });
+  }
+
+  document.getElementById('quest-tracker').innerText = "⚔️ Missão: Derrote os Slimes Corrompidos!";
+}
+
+loadVillageZone();
+
 const camera = {
-  x: 0, y: 0,
-  width: canvas.width,
-  height: canvas.height,
+  x: 0, y: 0, width: canvas.width, height: canvas.height,
   update() {
-    const targetX = player.x - this.width / 2;
-    const targetY = player.y - this.height / 2;
-    this.x += (targetX - this.x) * 0.12;
-    this.y += (targetY - this.y) * 0.12;
+    this.x += (player.x - this.width / 2 - this.x) * 0.12;
+    this.y += (player.y - this.height / 2 - this.y) * 0.12;
     this.x = Math.max(0, Math.min(this.x, WORLD_WIDTH - this.width));
     this.y = Math.max(0, Math.min(this.y, WORLD_HEIGHT - this.height));
   }
 };
 
 const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, w: false, s: false, a: false, d: false };
-
 window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key] = keys[e.key.toLowerCase()] = true; });
 window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key] = keys[e.key.toLowerCase()] = false; });
 
@@ -157,16 +252,36 @@ function bindTouch(id, keyName) {
 bindTouch('btn-up', 'ArrowUp'); bindTouch('btn-down', 'ArrowDown');
 bindTouch('btn-left', 'ArrowLeft'); bindTouch('btn-right', 'ArrowRight');
 
-// Ação de Magia: Explosão de partículas e Screen Shake
+// SISTEMA DE INTERAÇÃO E TIRO MÁGICO
+let activeNPC = null;
+const dialogueBox = document.getElementById('dialogue-box');
+
 document.getElementById('btn-action').addEventListener('click', () => {
-  screenShakeTimer = 15;
-  screenShakeIntensity = 4;
-  for (let i = 0; i < 35; i++) {
-    ambientParticles.push({
-      x: player.x + 12, y: player.y + 12,
-      vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
-      life: 1.0, color: '#38bdf8', size: 4
-    });
+  if (activeNPC) {
+    if (player.questStep === 0) {
+      player.questStep = 1;
+      document.getElementById('quest-tracker').innerText = "📜 Missão: Colete 3 Cristais Mágicos (💎 0/3)";
+    } else if (player.questStep === 1 && player.crystalsCollected >= 3) {
+      player.questStep = 2;
+      activeNPC.dialogue = "Incrível! Os cristais quebraram o selo. O Portão do Sul agora está aberto!";
+      document.getElementById('quest-tracker').innerText = "🚪 Portão do Sul Aberto! Siga para o sul.";
+    }
+    document.getElementById('dialogue-speaker').innerText = activeNPC.name;
+    document.getElementById('dialogue-text').innerText = activeNPC.dialogue;
+    dialogueBox.classList.remove('hidden');
+    playSound('dialogue');
+  } else {
+    dialogueBox.classList.add('hidden');
+    // Atirar Projétil Mágico
+    playSound('magic');
+    let vx = 0, vy = 0;
+    if (player.facing === 'up') vy = -6;
+    if (player.facing === 'down') vy = 6;
+    if (player.facing === 'left') vx = -6;
+    if (player.facing === 'right') vx = 6;
+
+    projectiles.push({ x: player.x + 12, y: player.y + 12, vx, vy, life: 40 });
+    if (settings.shake) screenShakeTimer = 6;
   }
 });
 
@@ -176,251 +291,144 @@ function checkCollision(nx, ny) {
     if (pBox.x < t.x + TILE_SIZE && pBox.x + pBox.width > t.x &&
         pBox.y < t.y + TILE_SIZE && pBox.y + pBox.height > t.y) return true;
   }
+  for (let h of houses) {
+    if (pBox.x < h.x + h.w && pBox.x + pBox.width > h.x &&
+        pBox.y < h.y + h.h && pBox.y + pBox.height > h.y) return true;
+  }
   return false;
 }
 
 function updateWorld() {
-  wind.update();
+  dayNight.update();
+  document.getElementById('time-display').innerText = dayNight.getPhase().name;
 
   if (screenShakeTimer > 0) screenShakeTimer--;
 
-  // Borboletas com fuga refinada e visíveis
-  butterflies.forEach(b => {
-    b.wingAnim += 0.4;
-    const dist = Math.hypot(b.x - player.x, b.y - player.y);
-    if (dist < 70) {
-      const angle = Math.atan2(b.y - player.y, b.x - player.x);
-      b.vx = Math.cos(angle) * 4;
-      b.vy = Math.sin(angle) * 4;
-    } else {
-      b.vx += (Math.random() - 0.5) * 0.5 + wind.forceX * 0.2;
-      b.vy += (Math.random() - 0.5) * 0.5;
-      b.vx *= 0.9; b.vy *= 0.9;
-    }
-    b.x += b.vx; b.y += b.vy;
-  });
+  // Projéteis
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    let p = projectiles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
 
-  // Pássaros levantando voo
-  birds.forEach(bird => {
-    const dist = Math.hypot(bird.x - player.x, bird.y - player.y);
-    if (dist < 80 && !bird.isFlying) {
-      bird.isFlying = true;
-      bird.vx = (Math.random() - 0.5) * 3;
-      bird.vy = -4;
-    }
-    if (bird.isFlying) {
-      bird.wingAnim += 0.5;
-      bird.x += bird.vx;
-      bird.y += bird.vy;
-    }
-  });
-
-  // Queda de folhas realistas das árvores
-  if (Math.random() < 0.4) {
-    const t = trees[Math.floor(Math.random() * trees.length)];
-    ambientParticles.push({
-      x: t.x + Math.random() * TILE_SIZE,
-      y: t.y + Math.random() * 16,
-      vx: wind.forceX * 1.5,
-      vy: Math.random() * 0.8 + 0.6,
-      life: 1.0,
-      color: '#4ade80',
-      size: 3
+    // Colisão com Inimigos
+    enemies.forEach((enemy, eIdx) => {
+      if (Math.hypot(p.x - enemy.x, p.y - enemy.y) < enemy.size) {
+        enemy.hp -= 15;
+        p.life = 0;
+        if (enemy.hp <= 0) enemies.splice(eIdx, 1);
+      }
     });
+
+    if (p.life <= 0) projectiles.splice(i, 1);
   }
 
-  for (let i = ambientParticles.length - 1; i >= 0; i--) {
-    let p = ambientParticles[i];
-    p.x += p.vx; p.y += p.vy; p.life -= 0.015;
-    if (p.life <= 0) ambientParticles.splice(i, 1);
-  }
+  // Inimigos Perseguindo o Mago
+  enemies.forEach(enemy => {
+    const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+    if (dist < 120) {
+      enemy.x += ((player.x - enemy.x) / dist) * enemy.speed;
+      enemy.y += ((player.y - enemy.y) / dist) * enemy.speed;
+      if (dist < 18) {
+        player.hp = Math.max(0, player.hp - 0.5);
+        document.getElementById('player-hp').innerText = `❤️ HP: ${Math.floor(player.hp)}/100`;
+      }
+    }
+  });
+
+  // Proximidade com NPCs
+  activeNPC = null;
+  npcs.forEach(npc => {
+    if (Math.hypot(npc.x - player.x, npc.y - player.y) < 40) activeNPC = npc;
+  });
 }
 
 function render() {
   ctx.save();
-  if (screenShakeTimer > 0) {
-    const shakeX = (Math.random() - 0.5) * screenShakeIntensity;
-    const shakeY = (Math.random() - 0.5) * screenShakeIntensity;
-    ctx.translate(shakeX, shakeY);
+  if (screenShakeTimer > 0 && settings.shake) {
+    ctx.translate((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4);
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const cx = camera.x, cy = camera.y;
 
-  const cx = camera.x;
-  const cy = camera.y;
-
-  // 1. Renderizar Chão Detalhado
-  const startCol = Math.max(0, Math.floor(cx / TILE_SIZE));
-  const endCol = Math.min(MAP_COLS, startCol + Math.ceil(canvas.width / TILE_SIZE) + 1);
-  const startRow = Math.max(0, Math.floor(cy / TILE_SIZE));
-  const endRow = Math.min(MAP_ROWS, startRow + Math.ceil(canvas.height / TILE_SIZE) + 1);
-
-  for (let r = startRow; r < endRow; r++) {
-    for (let c = startCol; c < endCol; c++) {
+  // 1. Chão
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
       const type = map[r][c];
-      const x = c * TILE_SIZE - cx;
-      const y = r * TILE_SIZE - cy;
-
-      if (type === 0 || type === 1) {
-        ctx.fillStyle = '#1e3a10';
-        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-        if (type === 1) {
-          // Tufos de grama e florzinhas vistosas
-          ctx.fillStyle = '#22c55e';
-          ctx.fillRect(x + 6, y + 8, 4, 8);
-          ctx.fillRect(x + 18, y + 16, 4, 6);
-          ctx.fillStyle = '#fb7185';
-          ctx.fillRect(x + 18, y + 12, 4, 4);
-        }
-      } else if (type === 2) {
-        ctx.fillStyle = '#78350f';
-        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-        ctx.fillStyle = '#92400e';
-        ctx.fillRect(x + 4, y + 4, 8, 8);
-        ctx.fillRect(x + 20, y + 18, 6, 6);
-      } else {
-        ctx.fillStyle = '#14280b';
-        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-      }
+      const x = c * TILE_SIZE - cx, y = r * TILE_SIZE - cy;
+      ctx.fillStyle = (type === 2) ? '#78350f' : ((type === 3) ? '#14280b' : '#1e3a10');
+      ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
     }
   }
 
-  // 2. Renderizar Árvores Robustas com Sombra
-  trees.forEach(t => {
-    const tx = t.x - cx;
-    const ty = t.y - cy;
-    const sway = Math.sin(wind.time * 2 + t.x) * wind.forceX * 3;
-
-    // Sombra no chão
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.beginPath();
-    ctx.ellipse(tx + 16, ty + 26, 14, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Tronco
-    ctx.fillStyle = '#422006';
-    ctx.fillRect(tx + 11, ty + 14, 10, 16);
-
-    // Copa Volumosa
-    ctx.fillStyle = '#14532d';
-    ctx.beginPath();
-    ctx.arc(tx + 16 + sway, ty + 10, 18, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#16a34a';
-    ctx.beginPath();
-    ctx.arc(tx + 13 + sway, ty + 7, 12, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // 3. Renderizar Borboletas Grandes e Vistosas
-  butterflies.forEach(b => {
-    const bx = b.x - cx;
-    const by = b.y - cy;
-    const wingSize = Math.abs(Math.sin(b.wingAnim)) * 6 + 2;
-
-    ctx.fillStyle = b.color;
-    ctx.fillRect(bx - wingSize, by - 3, wingSize, 6);
-    ctx.fillRect(bx, by - 3, wingSize, 6);
-  });
-
-  // 4. Renderizar Pássaros
-  birds.forEach(bird => {
-    const bx = bird.x - cx;
-    const by = bird.y - cy;
-    ctx.fillStyle = '#f8fafc';
-    if (bird.isFlying) {
-      const wingOffset = Math.sin(bird.wingAnim) * 5;
-      ctx.fillRect(bx - 8, by + wingOffset, 6, 3);
-      ctx.fillRect(bx + 2, by + wingOffset, 6, 3);
-      ctx.fillRect(bx - 2, by, 4, 4);
-    } else {
-      ctx.fillRect(bx, by, 8, 6);
+  // 2. Cristais Mágicos
+  crystals.forEach(c => {
+    if (!c.collected) {
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(c.x - cx + 12, c.y - cy + 12, 8, 8);
     }
   });
 
-  // 5. Renderizar Mago Remasterizado (Maior e com Animação Fluida)
-  const px = player.x - cx;
-  const py = player.y - cy;
-
-  // Sombra do Mago
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath();
-  ctx.ellipse(px + 12, py + 30, 10, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  const legOffset = Math.sin(player.walkTimer) * 5;
-  const windSway = wind.forceX * 2;
-
-  // Pernas
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(px + 6, py + 20 + (player.isMoving ? legOffset : 0), 5, 10);
-  ctx.fillRect(px + 13, py + 20 - (player.isMoving ? legOffset : 0), 5, 10);
-
-  // Túnica e Capa
-  ctx.fillStyle = '#2563eb';
-  ctx.fillRect(px + 4, py + 10, 16, 14);
-
-  // Capa ao vento
-  ctx.fillStyle = '#1d4ed8';
-  ctx.beginPath();
-  ctx.moveTo(px + 4, py + 16);
-  ctx.lineTo(px - 4 - windSway, py + 26);
-  ctx.lineTo(px + 20 - windSway, py + 26);
-  ctx.lineTo(px + 20, py + 16);
-  ctx.fill();
-
-  // Cabeça / Rosto
-  ctx.fillStyle = '#fed7aa';
-  ctx.fillRect(px + 8, py + 6, 10, 8);
-
-  // Chapéu de Mago com Ponta Dinâmica
-  ctx.fillStyle = '#1e3a8a';
-  ctx.fillRect(px + 4, py + 5, 18, 3); // Aba
-  ctx.beginPath();
-  ctx.moveTo(px + 6, py + 5);
-  ctx.lineTo(px + 12 + windSway, py - 8); // Ponta do chapéu balançando
-  ctx.lineTo(px + 18, py + 5);
-  ctx.fill();
-
-  // Cajado e Partículas de Fogo
-  ctx.fillStyle = '#78350f';
-  ctx.fillRect(px + 22, py + 4, 3, 24);
-
-  player.wandParticles.forEach(p => {
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = p.life;
-    ctx.fillRect(p.x - cx, p.y - cy, p.size, p.size);
+  // 3. Casas e Árvores
+  houses.forEach(h => {
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(h.x - cx, h.y - cy, h.w, h.h);
+    ctx.fillStyle = '#b91c1c'; ctx.fillRect(h.x - cx - 4, h.y - cy - 8, h.w + 8, 12);
   });
-  ctx.globalAlpha = 1.0;
-
-  // 6. Partículas do Ambiente (Folhas voando)
-  ambientParticles.forEach(p => {
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = p.life;
-    ctx.fillRect(p.x - cx, p.y - cy, p.size, p.size);
+  trees.forEach(t => {
+    ctx.fillStyle = '#422006'; ctx.fillRect(t.x - cx + 11, t.y - cy + 14, 10, 16);
+    ctx.fillStyle = '#16a34a'; ctx.beginPath(); ctx.arc(t.x - cx + 16, t.y - cy + 10, 18, 0, Math.PI * 2); ctx.fill();
   });
-  ctx.globalAlpha = 1.0;
 
-  // 7. Aura Mágica de Luz ao Redor do Mago (Iluminação Estilo RPG)
-  const gradient = ctx.createRadialGradient(px + 14, py + 14, 5, px + 14, py + 14, 90);
-  gradient.addColorStop(0, 'rgba(56, 189, 248, 0.18)');
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(px + 14, py + 14, 90, 0, Math.PI * 2);
-  ctx.fill();
+  // 4. Inimigos (Slimes Corrompidos)
+  enemies.forEach(e => {
+    ctx.fillStyle = '#a855f7';
+    ctx.beginPath(); ctx.arc(e.x - cx, e.y - cy, e.size / 2, 0, Math.PI * 2); ctx.fill();
+    // Barra de HP do Inimigo
+    ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - cx - 10, e.y - cy - 16, 20, 3);
+    ctx.fillStyle = '#22c55e'; ctx.fillRect(e.x - cx - 10, e.y - cy - 16, (e.hp / e.maxHp) * 20, 3);
+  });
+
+  // 5. Projéteis Mágicos
+  projectiles.forEach(p => {
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath(); ctx.arc(p.x - cx, p.y - cy, 5, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // 6. Mago Player
+  const px = player.x - cx, py = player.y - cy;
+  ctx.fillStyle = '#2563eb'; ctx.fillRect(px + 4, py + 10, 16, 14);
+  ctx.fillStyle = '#fed7aa'; ctx.fillRect(px + 8, py + 6, 10, 8);
+  ctx.fillStyle = '#1e3a8a'; ctx.fillRect(px + 4, py + 5, 18, 3);
+  ctx.fillStyle = '#78350f'; ctx.fillRect(px + 22, py + 4, 3, 24);
+
+  // 7. Renderização do Filtro de Dia / Noite & Luz do Mago
+  const phase = dayNight.getPhase();
+  if (phase.alpha > 0) {
+    ctx.fillStyle = `rgba(${phase.color || '0,0,0'}, ${phase.alpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Iluminação Radial Mágica em volta do Mago durante a Noite
+    const lightGlow = ctx.createRadialGradient(px + 12, py + 12, 10, px + 12, py + 12, 110);
+    lightGlow.addColorStop(0, 'rgba(255, 235, 59, 0.35)');
+    lightGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = lightGlow;
+    ctx.beginPath(); ctx.arc(px + 12, py + 12, 110, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   ctx.restore();
 }
 
+startTypewriter();
+
 function gameLoop() {
-  player.update();
-  camera.update();
-  updateWorld();
-  render();
+  if (gameState === 'PLAYING') {
+    player.update();
+    camera.update();
+    updateWorld();
+    render();
+  }
   requestAnimationFrame(gameLoop);
 }
 
 requestAnimationFrame(gameLoop);
-    
