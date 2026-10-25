@@ -1,1 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mage Quest - Retro RPG 8-Bit</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Container principal do jogo -->
+  <div id="game-container">
+    <!-- Canvas de Renderização (Estilo Tela Game Boy) -->
+    <canvas id="gameCanvas" width="320" height="288"></canvas>
+
+    <!-- Overlay UI (Interface do Jogador) -->
+    <div id="ui-overlay">
+      <div id="status-bar">
+        <span>🧙‍♂️ MAGO</span>
+        <span id="coord-display">X: 0 | Y: 0</span>
+      </div>
+    </div>
+
+    <!-- Controles Touch para Dispositivos Móveis -->
+    <div id="touch-controls">
+      <div class="dpad">
+        <button id="btn-up" class="dpad-btn up">▲</button>
+        <button id="btn-left" class="dpad-btn left">◄</button>
+        <button id="btn-right" class="dpad-btn right">►</button>
+        <button id="btn-down" class="dpad-btn down">▼</button>
+      </div>
+      <div class="action-buttons">
+        <button id="btn-action" class="action-btn">A</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
 
