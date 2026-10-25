@@ -8,27 +8,27 @@
 </head>
 <body>
 
-  <!-- Aviso de Orientação (Girar Tela) -->
+  <!-- Aviso para Girar Tela -->
   <div id="rotate-warning">
     <div class="warning-content">
       <span>📱🔄</span>
-      <h2>Gire o seu celular!</h2>
-      <p>Este jogo exige a tela na horizontal (paisagem) para a melhor experiência de combate.</p>
+      <h2>Gire o celular!</h2>
+      <p>Jogue com a tela na horizontal (paisagem).</p>
     </div>
   </div>
 
   <div id="game-container">
-    <!-- Menu Principal e Seleção de Dificuldade -->
+    <!-- Menu Principal Overlay -->
     <div id="menu-overlay">
       <h1 class="game-title">ULTIMATE RETRO BOXING</h1>
-      <p class="game-subtitle">Arena 360° - Defesa, Câmera Lenta e Contra-Ataque</p>
+      <p class="game-subtitle">Arena 360° - Canvas Responsivo</p>
       
       <div class="menu-card">
         <label for="difficulty-select">DIFICULDADE DA IA:</label>
         <select id="difficulty-select">
-          <option value="easy">Fácil (Iniciante)</option>
-          <option value="normal" selected>Normal (Equilibrado)</option>
-          <option value="hard">Difícil (Lenda do Ringue)</option>
+          <option value="easy">Fácil</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Difícil</option>
         </select>
       </div>
 
@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <!-- Modal de Configurações -->
+    <!-- Configurações Overlay -->
     <div id="settings-overlay" class="hidden">
       <div class="settings-card">
         <h2>⚙️ Configurações</h2>
@@ -50,57 +50,15 @@
       </div>
     </div>
 
-    <!-- Canvas do Jogo em Paisagem (16:9) -->
-    <canvas id="gameCanvas" width="640" height="360"></canvas>
-
-    <!-- HUD de Status do Combate -->
-    <div id="ui-overlay" class="hidden">
-      <div class="fighter-hud">
-        <span class="hud-name">P1: VOCÊ</span>
-        <div class="bar-container"><div id="player-hp" class="bar hp-bar"></div></div>
-        <div class="bar-container"><div id="player-stamina" class="bar stamina-bar"></div></div>
-      </div>
-      <div id="counter-prompt" class="hidden">⚡ COUNTER WINDOW! ⚡</div>
-      <div class="fighter-hud">
-        <span class="hud-name">P2: RIVAL (IA)</span>
-        <div class="bar-container"><div id="cpu-hp" class="bar hp-bar"></div></div>
-        <div class="bar-container"><div id="cpu-stamina" class="bar stamina-bar"></div></div>
-      </div>
-    </div>
-
-    <!-- Banner de Knockout -->
+    <!-- Modal de Fim de Jogo -->
     <div id="msg-overlay" class="hidden">
       <h1 id="msg-title">KNOCKOUT!</h1>
       <p id="msg-subtitle">VOCÊ VENCEU!</p>
-      <button id="btn-restart">NOVA LUTA 🥊</button>
+      <button id="btn-restart" class="menu-btn primary">REVANCHE 🥊</button>
     </div>
 
-    <!-- Controles Touch de Luta Avançados (Paisagem) -->
-    <div id="touch-controls" class="hidden">
-      <!-- D-Pad 360 para movimentação livre no ringue -->
-      <div class="dpad-container">
-        <div class="dpad">
-          <button id="btn-up" class="dpad-btn up">▲</button>
-          <button id="btn-left" class="dpad-btn left">◄</button>
-          <button id="btn-right" class="dpad-btn right">►</button>
-          <button id="btn-down" class="dpad-btn down">▼</button>
-        </div>
-      </div>
-
-      <!-- Botões de Ação: 4 Socos + Defesa + Desvio -->
-      <div class="actions-container">
-        <div class="punch-grid">
-          <button id="btn-jab" class="action-btn cyan">JAB</button>
-          <button id="btn-cross" class="action-btn blue">DIRETO</button>
-          <button id="btn-hook" class="action-btn orange">CRUZADO</button>
-          <button id="btn-uppercut" class="action-btn red">UPPER</button>
-        </div>
-        <div class="defense-grid">
-          <button id="btn-block" class="def-btn gray">BLOQUEIO</button>
-          <button id="btn-dodge" class="def-btn purple">DESVIAR ⚡</button>
-        </div>
-      </div>
-    </div>
+    <!-- Canvas Único Integrado -->
+    <canvas id="gameCanvas"></canvas>
   </div>
 
   <script src="script.js"></script>
