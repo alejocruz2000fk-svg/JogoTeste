@@ -1,16 +1,13 @@
 /**
- * ULTIMATE RETRO BOXING 360 - FULL CANVAS INTEGRATED CONTROLS
- * Developer: Senior Game Engine Architect
+ * ULTIMATE RETRO BOXING 360 - CAREER & KNOCKDOWN ENGINE
+ * Senior Game Engine Architect
  */
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Resolução Fixa Interna do Canvas (16:9 HD)
 canvas.width = 640;
 canvas.height = 360;
-
-ctx.imageSmoothingEnabled = false;
 
 // --- SINTETIZADOR DE ÁUDIO 8-BIT ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -28,48 +25,67 @@ function playSound(type) {
 
   if (type === 'hit') {
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(160, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.1);
-    osc.start(now); osc.stop(now + 0.1);
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.12);
+    osc.start(now); osc.stop(now + 0.12);
   } else if (type === 'block') {
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(90, now);
-    gain.gain.setValueAtTime(0.15, now);
+    osc.frequency.setValueAtTime(100, now);
+    gain.gain.setValueAtTime(0.2, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.08);
     osc.start(now); osc.stop(now + 0.08);
   } else if (type === 'dodge') {
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, now);
-    osc.frequency.setValueAtTime(800, now + 0.1);
-    gain.gain.setValueAtTime(0.1, now);
+    osc.frequency.setValueAtTime(500, now);
+    osc.frequency.setValueAtTime(1000, now + 0.1);
+    gain.gain.setValueAtTime(0.15, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.1);
     osc.start(now); osc.stop(now + 0.1);
   } else if (type === 'ko') {
     osc.type = 'square';
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(35, now + 0.5);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.5);
-    osc.start(now); osc.stop(now + 0.5);
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(25, now + 0.7);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.7);
+    osc.start(now); osc.stop(now + 0.7);
   } else if (type === 'click') {
     osc.type = 'square';
-    osc.frequency.setValueAtTime(440, now);
-    gain.gain.setValueAtTime(0.08, now);
+    osc.frequency.setValueAtTime(500, now);
+    gain.gain.setValueAtTime(0.1, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.05);
     osc.start(now); osc.stop(now + 0.05);
   }
 }
 
-// --- MENUS ---
+// --- CONFIGURAÇÃO DE OPONENTES DA CARREIRA ---
+const opponentsData = [
+  { name: 'APOLO', color: '#10b981', primaryColor: '#059669', speed: 2.8, hp: 80, aggression: 0.03 },
+  { name: 'BRUTUS', color: '#dc2626', primaryColor: '#b45309', speed: 2.3, hp: 100, aggression: 0.05 },
+  { name: 'IRON MIKE', color: '#7c3aed', primaryColor: '#581c87', speed: 2.1, hp: 130, aggression: 0.08 }
+];
+
+let selectedOpponentIndex = 1;
 let gameDifficulty = 'normal';
 
 document.getElementById('btn-start').addEventListener('click', () => {
   playSound('click');
+  selectedOpponentIndex = parseInt(document.getElementById('opponent-select').value);
   gameDifficulty = document.getElementById('difficulty-select').value;
+  
+  // Configurar atributos do Rival escolhido
+  const data = opponentsData[selectedOpponentIndex];
+  cpu.name = data.name;
+  cpu.color = data.color;
+  cpu.primaryColor = data.primaryColor;
+  cpu.speed = data.speed;
+  cpu.maxHp = data.hp;
+  cpu.hp = data.hp;
+
   document.getElementById('menu-overlay').classList.add('hidden');
   gameOver = false;
+  knockdownTimer = 0;
 });
 
 document.getElementById('btn-settings').addEventListener('click', () => {
@@ -83,17 +99,43 @@ document.getElementById('btn-close-settings').addEventListener('click', () => {
   document.getElementById('settings-overlay').classList.add('hidden');
 });
 
-// --- ENGINE DE JOGO ---
+// --- SISTEMA DE PARTÍCULAS E EFEITOS ---
+const hitParticles = [];
+const floatingTexts = [];
+let screenFlashAlpha = 0;
+let knockdownTimer = 0;
+let refereeCount = 0;
+
+function createHitSparks(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    hitParticles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      size: Math.random() * 4 + 2,
+      life: 1.0,
+      color
+    });
+  }
+}
+
+function addFloatingText(text, x, y, color = '#facc15') {
+  floatingTexts.push({ text, x, y, vy: -1.5, life: 1.0, color });
+}
+
+// --- ENGINE DE COMBATE ---
 let gameOver = true;
 let screenShake = 0;
 let timeScale = 1.0;
 let counterWindowTimer = 0;
 
 class Boxer {
-  constructor(x, y, color, isCPU = false) {
+  constructor(x, y, color, primaryColor, name, isCPU = false) {
     this.x = x;
     this.y = y;
     this.color = color;
+    this.primaryColor = primaryColor;
+    this.name = name;
     this.isCPU = isCPU;
 
     this.hp = 100;
@@ -104,6 +146,7 @@ class Boxer {
     this.state = 'IDLE';
     this.animTimer = 0;
     this.speed = 2.4;
+    this.knockdownAnim = 0;
   }
 
   update(opponent) {
@@ -132,7 +175,6 @@ class Boxer {
     const dy = player.y - this.y;
     const dist = Math.hypot(dx, dy);
 
-    const attackChance = gameDifficulty === 'easy' ? 0.02 : gameDifficulty === 'normal' ? 0.045 : 0.08;
     const aggressionDist = gameDifficulty === 'easy' ? 70 : 55;
 
     if (dist > aggressionDist && this.state === 'IDLE') {
@@ -144,9 +186,11 @@ class Boxer {
     }
 
     this.x = Math.max(120, Math.min(520, this.x));
-    this.y = Math.max(80, Math.min(220, this.y));
+    this.y = Math.max(90, Math.min(230, this.y));
 
-    if (dist <= 65 && this.state === 'IDLE' && Math.random() < attackChance) {
+    const currentAggression = opponentsData[selectedOpponentIndex].aggression * (gameDifficulty === 'easy' ? 0.5 : gameDifficulty === 'hard' ? 1.4 : 1.0);
+
+    if (dist <= 65 && this.state === 'IDLE' && Math.random() < currentAggression) {
       const rand = Math.random();
       if (rand < 0.4) this.attack(player, 'JAB');
       else if (rand < 0.7) this.attack(player, 'CROSS');
@@ -175,7 +219,7 @@ class Boxer {
 
     if (opponent.state === 'DODGE') return;
 
-    if (dist <= 70) {
+    if (dist <= 75) {
       const damages = { JAB: 7, CROSS: 13, HOOK: 17, UPPERCUT: 22 };
       let dmg = damages[type] || 10;
 
@@ -208,20 +252,28 @@ class Boxer {
       this.hp -= amount * 0.2;
       this.stamina = Math.max(0, this.stamina - 4);
       playSound('block');
+      createHitSparks(this.x, this.y - 20, '#94a3b8');
+      addFloatingText('BLOQUEOU', this.x - 24, this.y - 45, '#94a3b8');
     } else if (this.state === 'DODGE') {
       return;
     } else {
       this.hp -= amount;
       this.state = 'HIT';
       this.animTimer = 0;
-      screenShake = punchType === 'UPPERCUT' || punchType === 'HOOK' ? 10 : 5;
+      screenShake = punchType === 'UPPERCUT' || punchType === 'HOOK' ? 14 : 7;
+      screenFlashAlpha = 0.35; // Flash dramático de impacto
       playSound('hit');
+
+      const hitColor = punchType === 'UPPERCUT' ? '#ef4444' : '#facc15';
+      createHitSparks(this.x, this.y - 25, hitColor);
+      addFloatingText(`-${Math.floor(amount)}`, this.x - 12, this.y - 50, hitColor);
 
       if (this.hp <= 0) {
         this.hp = 0;
         this.state = 'KO';
+        this.knockdownAnim = 0;
         playSound('ko');
-        endGame(this.isCPU ? "VOCÊ VENCEU POR KO!" : "VOCÊ FOI NOCAUTEADO!");
+        triggerKnockdown(this);
       }
     }
   }
@@ -231,85 +283,118 @@ class Boxer {
     const by = this.y;
     const lookingRight = opponent.x > this.x;
 
-    // Sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    // Sombra Elíptica
+    const shadowGrad = ctx.createRadialGradient(bx, by + 35, 2, bx, by + 35, 22);
+    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
+    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadowGrad;
     ctx.beginPath();
-    ctx.ellipse(bx, by + 32, 18, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(bx, by + 35, 22, 9, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    if (this.state === 'DODGE') ctx.globalAlpha = 0.6;
+    ctx.save();
 
-    // Pernas
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(bx - 12, by + 12, 8, 20);
-    ctx.fillRect(bx + 4, by + 12, 8, 20);
+    // Se estiver em KO, renderizar animação de queda de costas na lona
+    if (this.state === 'KO') {
+      this.knockdownAnim = Math.min(this.knockdownAnim + 0.1, 1.0);
+      ctx.translate(bx, by + 10);
+      ctx.rotate(this.knockdownAnim * (this.isCPU ? 1.57 : -1.57));
+      ctx.translate(-bx, -(by + 10));
+    }
+
+    if (this.state === 'DODGE') ctx.globalAlpha = 0.5;
+
+    // Pernas & Sapatos
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(bx - 12, by + 20, 8, 14);
+    ctx.fillRect(bx + 4, by + 20, 8, 14);
 
     // Calção
     ctx.fillStyle = this.color;
-    ctx.fillRect(bx - 14, by - 2, 28, 16);
+    ctx.fillRect(bx - 15, by - 2, 30, 18);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(bx - 15, by + 10, 30, 6);
 
     // Tronco
-    ctx.fillStyle = '#d97706';
-    ctx.fillRect(bx - 12, by - 18, 24, 18);
+    const torsoGrad = ctx.createLinearGradient(bx - 14, by - 22, bx + 14, by - 2);
+    torsoGrad.addColorStop(0, this.primaryColor);
+    torsoGrad.addColorStop(1, '#b45309');
+    ctx.fillStyle = torsoGrad;
+    ctx.fillRect(bx - 13, by - 22, 26, 21);
 
-    // Cabeça
+    // Cabeça HD
     ctx.fillStyle = '#fed7aa';
-    ctx.fillRect(bx - 8, by - 32, 16, 14);
+    ctx.fillRect(bx - 9, by - 38, 18, 16);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(bx - 9, by - 38, 18, 5);
+
+    ctx.fillStyle = '#020617';
+    const eyeOffsetX = lookingRight ? 3 : -6;
+    ctx.fillRect(bx + eyeOffsetX, by - 31, 3, 3);
 
     // Luvas
-    ctx.fillStyle = '#dc2626';
+    ctx.fillStyle = this.color;
     const faceDir = lookingRight ? 1 : -1;
 
     if (this.state === 'JAB') {
-      ctx.fillRect(bx + (faceDir * 18), by - 16, 16, 8);
+      ctx.beginPath(); ctx.arc(bx + (faceDir * 24), by - 16, 9, 0, Math.PI * 2); ctx.fill();
     } else if (this.state === 'CROSS') {
-      ctx.fillRect(bx + (faceDir * 26), by - 14, 20, 10);
+      ctx.beginPath(); ctx.arc(bx + (faceDir * 34), by - 14, 11, 0, Math.PI * 2); ctx.fill();
     } else if (this.state === 'HOOK') {
-      ctx.fillRect(bx + (faceDir * 16), by - 24, 14, 12);
+      ctx.beginPath(); ctx.arc(bx + (faceDir * 20), by - 26, 10, 0, Math.PI * 2); ctx.fill();
     } else if (this.state === 'UPPERCUT') {
-      ctx.fillRect(bx + (faceDir * 10), by - 32, 12, 14);
+      ctx.beginPath(); ctx.arc(bx + (faceDir * 12), by - 36, 11, 0, Math.PI * 2); ctx.fill();
     } else if (this.state === 'BLOCK' || this.state === 'DODGE') {
-      ctx.fillRect(bx - 10, by - 28, 8, 12);
-      ctx.fillRect(bx + 2, by - 28, 8, 12);
+      ctx.beginPath(); ctx.arc(bx - 8, by - 30, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx + 8, by - 30, 8, 0, Math.PI * 2); ctx.fill();
     } else {
-      ctx.fillRect(bx - 12, by - 18, 8, 12);
-      ctx.fillRect(bx + 4, by - 18, 8, 12);
+      ctx.beginPath(); ctx.arc(bx - 12, by - 20, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx + 12, by - 20, 8, 0, Math.PI * 2); ctx.fill();
     }
 
-    ctx.globalAlpha = 1.0;
+    ctx.restore();
   }
 }
 
-const player = new Boxer(200, 160, '#2563eb', false);
-const cpu = new Boxer(440, 160, '#dc2626', true);
+// Instâncias
+const player = new Boxer(200, 160, '#2563eb', '#d97706', 'VOCÊ', false);
+const cpu = new Boxer(440, 160, '#dc2626', '#b45309', 'BRUTUS', true);
 
-// CONTROLES VIRTUAIS NO CANVAS & TOUCH
+// Juiz ao Fundo
+const referee = {
+  x: 320, y: 70,
+  draw() {
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(this.x - 7, this.y - 14, 14, 20);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(this.x - 7, this.y - 14, 3, 20);
+    ctx.fillRect(this.x - 1, this.y - 14, 3, 20);
+    ctx.fillRect(this.x + 5, this.y - 14, 3, 20);
+    ctx.fillStyle = '#fed7aa'; ctx.fillRect(this.x - 6, this.y - 26, 12, 12);
+  }
+};
+
+// CONTROLES TOUCH E VIRTUAIS NO CANVAS
 const moveKeys = { up: false, down: false, left: false, right: false };
 
-// Mapeamento das regiões de toque dos botões na tela
 const virtualButtons = [
-  // D-Pad
-  { id: 'up', x: 50, y: 240, w: 35, h: 35, text: '▲' },
-  { id: 'down', x: 50, y: 310, w: 35, h: 35, text: '▼' },
-  { id: 'left', x: 10, y: 275, w: 35, h: 35, text: '◄' },
-  { id: 'right', x: 90, y: 275, w: 35, h: 35, text: '►' },
+  { id: 'up', x: 50, y: 240, w: 38, h: 38, text: '▲' },
+  { id: 'down', x: 50, y: 310, w: 38, h: 38, text: '▼' },
+  { id: 'left', x: 8, y: 275, w: 38, h: 38, text: '◄' },
+  { id: 'right', x: 92, y: 275, w: 38, h: 38, text: '►' },
 
-  // Socos
-  { id: 'jab', x: 420, y: 245, w: 45, h: 32, text: 'JAB', color: '#0891b2' },
-  { id: 'cross', x: 470, y: 245, w: 45, h: 32, text: 'DIR', color: '#2563eb' },
-  { id: 'hook', x: 520, y: 245, w: 45, h: 32, text: 'CRZ', color: '#d97706' },
-  { id: 'uppercut', x: 570, y: 245, w: 45, h: 32, text: 'UPP', color: '#dc2626' },
+  { id: 'jab', x: 410, y: 245, w: 48, h: 34, text: 'JAB', color: '#0891b2' },
+  { id: 'cross', x: 464, y: 245, w: 48, h: 34, text: 'DIR', color: '#2563eb' },
+  { id: 'hook', x: 518, y: 245, w: 48, h: 34, text: 'CRZ', color: '#d97706' },
+  { id: 'uppercut', x: 572, y: 245, w: 58, h: 34, text: 'UPP', color: '#dc2626' },
 
-  // Defesa
-  { id: 'block', x: 440, y: 290, w: 80, h: 35, text: 'BLOQUEIO', color: '#4b5563' },
-  { id: 'dodge', x: 530, y: 290, w: 80, h: 35, text: 'DESVIAR ⚡', color: '#7c3aed' }
+  { id: 'block', x: 435, y: 292, w: 85, h: 38, text: 'BLOQUEIO', color: '#475569' },
+  { id: 'dodge', x: 530, y: 292, w: 95, h: 38, text: 'DESVIAR ⚡', color: '#7c3aed' }
 ];
 
 function handleTouch(e) {
   if (gameOver) return;
   e.preventDefault();
 
-  // Resetar direções
   moveKeys.up = moveKeys.down = moveKeys.left = moveKeys.right = false;
 
   const rect = canvas.getBoundingClientRect();
@@ -347,7 +432,7 @@ canvas.addEventListener('touchstart', handleTouch);
 canvas.addEventListener('touchmove', handleTouch);
 canvas.addEventListener('touchend', handleTouch);
 
-// Suporte para Teclado no PC
+// Teclado PC
 window.addEventListener('keydown', e => {
   if (gameOver) return;
   const k = e.key.toLowerCase();
@@ -373,60 +458,86 @@ window.addEventListener('keyup', e => {
   if (k === 'h' && player.state === 'BLOCK') player.state = 'IDLE';
 });
 
-// DESENHO INTEGRADO NO CANVAS (RINGUE, HUD, BOTÕES)
-function renderRing() {
-  ctx.fillStyle = '#1e293b';
-  ctx.fillRect(40, 50, 560, 180);
+// --- RENDERIZAÇÃO GRÁFICA DA ARENA ---
+let lightPhase = 0;
 
-  ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
-  for (let x = 60; x < 600; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 50); ctx.lineTo(x, 230); ctx.stroke();
+function renderArena() {
+  lightPhase += 0.025;
+
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bgGrad.addColorStop(0, '#020617');
+  bgGrad.addColorStop(0.5, '#0f172a');
+  bgGrad.addColorStop(1, '#1e293b');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let x = 5; x < canvas.width; x += 14) {
+    const jump = Math.sin(lightPhase * 4 + x) * 2.5;
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(x, 32 + jump, 9, 24);
+    ctx.fillStyle = '#64748b';
+    ctx.beginPath(); ctx.arc(x + 4.5, 27 + jump, 3.5, 0, Math.PI * 2); ctx.fill();
   }
 
-  ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3;
-  ctx.strokeRect(40, 50, 560, 180);
+  const spotX = 320 + Math.sin(lightPhase) * 60;
+  const spotGrad = ctx.createRadialGradient(spotX, 60, 20, spotX, 60, 180);
+  spotGrad.addColorStop(0, 'rgba(56, 189, 248, 0.22)');
+  spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = spotGrad;
+  ctx.beginPath(); ctx.arc(spotX, 60, 180, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(40, 50, 560, 190);
+
+  ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.5;
+  for (let x = 60; x < 600; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 50); ctx.lineTo(x, 240); ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3.5;
+  ctx.strokeRect(40, 50, 560, 190);
+  ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 1;
+  ctx.strokeRect(43, 53, 554, 184);
 }
 
 function renderHUD() {
-  // P1 HUD (Você)
-  ctx.fillStyle = '#f3f4f6';
+  ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 10px monospace';
   ctx.fillText('P1: VOCÊ', 20, 18);
 
-  ctx.fillStyle = '#1f2937';
-  ctx.fillRect(20, 22, 180, 10);
-  ctx.fillStyle = '#ef4444';
-  ctx.fillRect(20, 22, (player.hp / player.maxHp) * 180, 10);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(20, 22, 180, 11);
+  ctx.fillStyle = '#ef4444'; ctx.fillRect(20, 22, (player.hp / player.maxHp) * 180, 11);
 
-  ctx.fillStyle = '#1f2937';
-  ctx.fillRect(20, 34, 180, 5);
-  ctx.fillStyle = '#eab308';
-  ctx.fillRect(20, 34, (player.stamina / player.maxStamina) * 180, 5);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(20, 36, 180, 5);
+  ctx.fillStyle = '#eab308'; ctx.fillRect(20, 36, (player.stamina / player.maxStamina) * 180, 5);
 
-  // VS Badge
-  ctx.fillStyle = '#ef4444';
-  ctx.font = 'bold 12px monospace';
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 13px monospace';
   ctx.fillText('VS', 310, 26);
 
-  // P2 HUD (Rival IA)
-  ctx.fillStyle = '#f3f4f6';
+  ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 10px monospace';
-  ctx.fillText('P2: RIVAL', 440, 18);
+  ctx.fillText(`P2: ${cpu.name}`, 440, 18);
 
-  ctx.fillStyle = '#1f2937';
-  ctx.fillRect(440, 22, 180, 10);
-  ctx.fillStyle = '#ef4444';
-  ctx.fillRect(440, 22, (cpu.hp / cpu.maxHp) * 180, 10);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(440, 22, 180, 11);
+  ctx.fillStyle = '#ef4444'; ctx.fillRect(440, 22, (cpu.hp / cpu.maxHp) * 180, 11);
 
-  ctx.fillStyle = '#1f2937';
-  ctx.fillRect(440, 34, 180, 5);
-  ctx.fillStyle = '#eab308';
-  ctx.fillRect(440, 34, (cpu.stamina / cpu.maxStamina) * 180, 5);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(440, 36, 180, 5);
+  ctx.fillStyle = '#eab308'; ctx.fillRect(440, 36, (cpu.stamina / cpu.maxStamina) * 180, 5);
 
   if (counterWindowTimer > 0) {
     ctx.fillStyle = '#facc15';
     ctx.font = 'bold 12px monospace';
     ctx.fillText('⚡ COUNTER WINDOW! ⚡', 240, 46);
+  }
+
+  // Contagem do Juiz na tela se houver knockdown
+  if (knockdownTimer > 0) {
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`CONTAGEM DO JUIZ: ${refereeCount}`, 320, 100);
+    ctx.textAlign = 'left';
   }
 }
 
@@ -437,12 +548,12 @@ function renderVirtualButtons() {
     ctx.fillStyle = btn.color || '#1e293b';
     ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
 
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 9px monospace';
+    ctx.font = 'bold 10px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
@@ -451,69 +562,49 @@ function renderVirtualButtons() {
   ctx.textBaseline = 'alphabetic';
 }
 
+function renderEffects() {
+  for (let i = hitParticles.length - 1; i >= 0; i--) {
+    let p = hitParticles[i];
+    p.x += p.vx; p.y += p.vy; p.life -= 0.07;
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+    if (p.life <= 0) hitParticles.splice(i, 1);
+  }
+
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    let ft = floatingTexts[i];
+    ft.y += ft.vy; ft.life -= 0.035;
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 12px monospace';
+    ctx.globalAlpha = ft.life;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    if (ft.life <= 0) floatingTexts.splice(i, 1);
+  }
+
+  // Flash de impacto na tela
+  if (screenFlashAlpha > 0) {
+    ctx.fillStyle = `rgba(239, 68, 68, ${screenFlashAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    screenFlashAlpha -= 0.05;
+  }
+
+  ctx.globalAlpha = 1.0;
+}
+
+function triggerKnockdown(loser) {
+  knockdownTimer = 180; // quadros de contagem
+  refereeCount = 1;
+  const interval = setInterval(() => {
+    refereeCount++;
+    if (refereeCount > 5 || gameOver) clearInterval(interval);
+  }, 800);
+
+  setTimeout(() => {
+    endGame(loser.isCPU ? "VOCÊ VENCEU POR KO!" : "VOCÊ FOI NOCAUTEADO!");
+  }, 4000);
+}
+
 function endGame(text) {
   gameOver = true;
-  document.getElementById('msg-subtitle').innerText = text;
-  document.getElementById('msg-overlay').classList.remove('hidden');
-}
-
-document.getElementById('btn-restart').addEventListener('click', () => {
-  playSound('click');
-  player.hp = 100; player.stamina = 100; player.state = 'IDLE'; player.x = 200; player.y = 160;
-  cpu.hp = 100; cpu.stamina = 100; cpu.state = 'IDLE'; cpu.x = 440; cpu.y = 160;
-  gameOver = false;
-  timeScale = 1.0;
-  counterWindowTimer = 0;
-  document.getElementById('msg-overlay').classList.add('hidden');
-});
-
-// GAMELOOP
-function gameLoop() {
-  ctx.save();
-
-  if (screenShake > 0) {
-    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
-    screenShake *= 0.85;
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  renderRing();
-
-  if (!gameOver && player.state !== 'KO') {
-    let dx = 0, dy = 0;
-    if (moveKeys.up) dy -= 1;
-    if (moveKeys.down) dy += 1;
-    if (moveKeys.left) dx -= 1;
-    if (moveKeys.right) dx += 1;
-
-    if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
-
-    player.x = Math.max(60, Math.min(580, player.x + dx * player.speed));
-    player.y = Math.max(70, Math.min(210, player.y + dy * player.speed));
-  }
-
-  if (counterWindowTimer > 0) {
-    counterWindowTimer--;
-    if (counterWindowTimer <= 0) timeScale = 1.0;
-  }
-
-  player.update(cpu);
-  cpu.update(player);
-
-  if (player.y < cpu.y) {
-    player.draw(cpu);
-    cpu.draw(player);
-  } else {
-    cpu.draw(player);
-    player.draw(cpu);
-  }
-
-  renderHUD();
-  renderVirtualButtons();
-
-  ctx.restore();
-  requestAnimationFrame(gameLoop);
-}
-
-requestAnimationFrame(gameLoop);
-    
+  document.getElementById('msg-subtitle').inne
