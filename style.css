@@ -19,6 +19,10 @@ body, html {
   overflow: hidden;
 }
 
+.hidden {
+  display: none !important;
+}
+
 #game-container {
   position: relative;
   width: 100vw;
@@ -40,37 +44,159 @@ body, html {
   background-color: #142e0c;
   border: 3px solid #1f2937;
   border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0,0,0,0.5);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
+/* UI HUD Overlay */
 #ui-overlay {
   position: absolute;
-  top: 18px;
+  top: 14px;
   width: 88%;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
   pointer-events: none;
 }
 
 #status-bar {
   background: rgba(15, 23, 42, 0.9);
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-size: 10px;
   font-weight: bold;
   border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
-  gap: 12px;
-  color: #9ca3af;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  justify-content: space-between;
+  color: #e2e8f0;
 }
 
-.badge {
+#quest-tracker {
+  background: rgba(30, 41, 59, 0.85);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 9px;
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  text-align: center;
+}
+
+.badge { color: #f43f5e; }
+
+/* Overlays */
+#cutscene-overlay, #menu-overlay, #settings-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(3, 7, 18, 0.92);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  padding: 20px;
+  text-align: center;
+}
+
+.cutscene-card {
+  background: #0f172a;
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 360px;
+}
+
+#cutscene-title {
   color: #60a5fa;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 12px;
 }
 
+#cutscene-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  min-height: 90px;
+  text-align: left;
+}
+
+#btn-skip-cutscene {
+  margin-top: 15px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+}
+
+.game-title {
+  font-size: 26px;
+  color: #60a5fa;
+  text-shadow: 0 0 12px rgba(96, 165, 250, 0.5);
+  margin-bottom: 4px;
+}
+
+.game-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 25px;
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 200px;
+}
+
+.menu-btn {
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 13px;
+  border: none;
+}
+
+.menu-btn.primary { background: #2563eb; color: white; }
+.menu-btn.secondary { background: #334155; color: #e2e8f0; }
+
+.settings-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+  width: 280px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  margin: 15px 0;
+}
+
+/* Caixa de Diálogo */
+#dialogue-box {
+  position: absolute;
+  bottom: 130px;
+  width: 90%;
+  max-width: 380px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid #60a5fa;
+  border-radius: 10px;
+  padding: 12px;
+  z-index: 5;
+}
+
+#dialogue-speaker { font-size: 11px; color: #facc15; font-weight: bold; margin-bottom: 4px; }
+#dialogue-text { font-size: 12px; color: #ffffff; line-height: 1.4; }
+#dialogue-hint { font-size: 9px; color: #94a3b8; text-align: right; margin-top: 6px; }
+
+/* Controles Touch */
 #touch-controls {
   width: 100%;
   max-width: 420px;
@@ -81,58 +207,24 @@ body, html {
   margin-top: 8px;
 }
 
-.dpad {
-  position: relative;
-  width: 120px;
-  height: 120px;
-}
-
+.dpad { position: relative; width: 120px; height: 120px; }
 .dpad-btn {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  background: #1e293b;
-  border: 2px solid #334155;
-  color: #e2e8f0;
-  font-size: 16px;
-  border-radius: 10px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  touch-action: manipulation;
-  box-shadow: 0 4px 0 #0f172a;
+  position: absolute; width: 40px; height: 40px;
+  background: #1e293b; border: 2px solid #334155;
+  color: #e2e8f0; font-size: 16px; border-radius: 10px;
+  display: flex; justify-content: center; align-items: center;
+  touch-action: manipulation; box-shadow: 0 4px 0 #0f172a;
 }
-
-.dpad-btn:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 #0f172a;
-  background: #2563eb;
-  color: #fff;
-}
-
-.dpad-btn.up    { top: 0; left: 40px; }
-.dpad-btn.down  { bottom: 0; left: 40px; }
-.dpad-btn.left  { top: 40px; left: 0; }
+.dpad-btn:active { transform: translateY(3px); background: #2563eb; }
+.dpad-btn.up { top: 0; left: 40px; }
+.dpad-btn.down { bottom: 0; left: 40px; }
+.dpad-btn.left { top: 40px; left: 0; }
 .dpad-btn.right { top: 40px; right: 0; }
 
-.action-buttons {
-  display: flex;
-  align-items: center;
-}
-
 .action-btn {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
+  width: 64px; height: 64px; border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  border: 2px solid #60a5fa;
-  color: white;
-  font-size: 22px;
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5), 0 4px 0 #1e3a8a;
+  border: 2px solid #60a5fa; color: white; font-size: 22px;
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
   touch-action: manipulation;
-}
-
-.action-btn:active {
-  transform: translateY(3px);
-  box-shadow: 0 2px 0 #1e3a8a;
-}
+  }
