@@ -3,46 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Arcane Nature - Elite RPG Edition</title>
+  <title>Ultimate Retro Boxing 360</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+  <!-- Aviso de Orientação (Girar Tela) -->
+  <div id="rotate-warning">
+    <div class="warning-content">
+      <span>📱🔄</span>
+      <h2>Gire o seu celular!</h2>
+      <p>Este jogo exige a tela na horizontal (paisagem) para a melhor experiência de combate.</p>
+    </div>
+  </div>
+
   <div id="game-container">
-    <canvas id="gameCanvas" width="400" height="300"></canvas>
-
-    <!-- HUD Superior do Jogo -->
-    <div id="ui-overlay" class="hidden">
-      <div id="status-bar">
-        <span class="badge" id="player-hp">❤️ HP: 100/100</span>
-        <span id="inventory-display">💎 0/3</span>
-        <span id="time-display">🌅 Dia</span>
+    <!-- Menu Principal e Seleção de Dificuldade -->
+    <div id="menu-overlay">
+      <h1 class="game-title">ULTIMATE RETRO BOXING</h1>
+      <p class="game-subtitle">Arena 360° - Defesa, Câmera Lenta e Contra-Ataque</p>
+      
+      <div class="menu-card">
+        <label for="difficulty-select">DIFICULDADE DA IA:</label>
+        <select id="difficulty-select">
+          <option value="easy">Fácil (Iniciante)</option>
+          <option value="normal" selected>Normal (Equilibrado)</option>
+          <option value="hard">Difícil (Lenda do Ringue)</option>
+        </select>
       </div>
-      <div id="quest-tracker">📜 Missão: Fale com o Ancião Eldrin</div>
-    </div>
 
-    <!-- Caixa de Diálogo do RPG -->
-    <div id="dialogue-box" class="hidden">
-      <div id="dialogue-speaker">NPC</div>
-      <div id="dialogue-text">Texto do diálogo...</div>
-      <div id="dialogue-hint">Aperte ✨ para continuar</div>
-    </div>
-
-    <!-- Cutscene Overlay -->
-    <div id="cutscene-overlay">
-      <div class="cutscene-card">
-        <div id="cutscene-title">CAPÍTULO I: O PORTÃO SELADO</div>
-        <p id="cutscene-text"></p>
-        <button id="btn-skip-cutscene">Pular Cutscene ⏩</button>
-      </div>
-    </div>
-
-    <!-- Menu Principal Overlay -->
-    <div id="menu-overlay" class="hidden">
-      <h1 class="game-title">ARCANE NATURE</h1>
-      <p class="game-subtitle">Elite RPG Edition</p>
       <div class="menu-buttons">
-        <button id="btn-start" class="menu-btn primary">🎮 JOGAR</button>
+        <button id="btn-start" class="menu-btn primary">🎮 INICIAR LUTA</button>
         <button id="btn-settings" class="menu-btn secondary">⚙️ CONFIGURAÇÕES</button>
       </div>
     </div>
@@ -52,31 +43,62 @@
       <div class="settings-card">
         <h2>⚙️ Configurações</h2>
         <div class="setting-row">
-          <span>Sons 8-Bit (Sintetizador)</span>
+          <span>Efeitos Sonoros 8-Bit</span>
           <input type="checkbox" id="setting-sound" checked>
-        </div>
-        <div class="setting-row">
-          <span>Efeitos Visuais / Partículas</span>
-          <input type="checkbox" id="setting-particles" checked>
-        </div>
-        <div class="setting-row">
-          <span>Tremer Tela (Screen Shake)</span>
-          <input type="checkbox" id="setting-shake" checked>
         </div>
         <button id="btn-close-settings" class="menu-btn primary">Salvar e Voltar</button>
       </div>
     </div>
 
-    <!-- Controles Touch para Celular -->
-    <div id="touch-controls" class="hidden">
-      <div class="dpad">
-        <button id="btn-up" class="dpad-btn up">▲</button>
-        <button id="btn-left" class="dpad-btn left">◄</button>
-        <button id="btn-right" class="dpad-btn right">►</button>
-        <button id="btn-down" class="dpad-btn down">▼</button>
+    <!-- Canvas do Jogo em Paisagem (16:9) -->
+    <canvas id="gameCanvas" width="640" height="360"></canvas>
+
+    <!-- HUD de Status do Combate -->
+    <div id="ui-overlay" class="hidden">
+      <div class="fighter-hud">
+        <span class="hud-name">P1: VOCÊ</span>
+        <div class="bar-container"><div id="player-hp" class="bar hp-bar"></div></div>
+        <div class="bar-container"><div id="player-stamina" class="bar stamina-bar"></div></div>
       </div>
-      <div class="action-buttons">
-        <button id="btn-action" class="action-btn">✨</button>
+      <div id="counter-prompt" class="hidden">⚡ COUNTER WINDOW! ⚡</div>
+      <div class="fighter-hud">
+        <span class="hud-name">P2: RIVAL (IA)</span>
+        <div class="bar-container"><div id="cpu-hp" class="bar hp-bar"></div></div>
+        <div class="bar-container"><div id="cpu-stamina" class="bar stamina-bar"></div></div>
+      </div>
+    </div>
+
+    <!-- Banner de Knockout -->
+    <div id="msg-overlay" class="hidden">
+      <h1 id="msg-title">KNOCKOUT!</h1>
+      <p id="msg-subtitle">VOCÊ VENCEU!</p>
+      <button id="btn-restart">NOVA LUTA 🥊</button>
+    </div>
+
+    <!-- Controles Touch de Luta Avançados (Paisagem) -->
+    <div id="touch-controls" class="hidden">
+      <!-- D-Pad 360 para movimentação livre no ringue -->
+      <div class="dpad-container">
+        <div class="dpad">
+          <button id="btn-up" class="dpad-btn up">▲</button>
+          <button id="btn-left" class="dpad-btn left">◄</button>
+          <button id="btn-right" class="dpad-btn right">►</button>
+          <button id="btn-down" class="dpad-btn down">▼</button>
+        </div>
+      </div>
+
+      <!-- Botões de Ação: 4 Socos + Defesa + Desvio -->
+      <div class="actions-container">
+        <div class="punch-grid">
+          <button id="btn-jab" class="action-btn cyan">JAB</button>
+          <button id="btn-cross" class="action-btn blue">DIRETO</button>
+          <button id="btn-hook" class="action-btn orange">CRUZADO</button>
+          <button id="btn-uppercut" class="action-btn red">UPPER</button>
+        </div>
+        <div class="defense-grid">
+          <button id="btn-block" class="def-btn gray">BLOQUEIO</button>
+          <button id="btn-dodge" class="def-btn purple">DESVIAR ⚡</button>
+        </div>
       </div>
     </div>
   </div>
