@@ -3,25 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultimate Retro Boxing 360 - Career & Knockdown Edition</title>
+  <title>Ultimate Retro Boxing 360 - Live Demo Edition</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Aviso de Orientação (Paisagem Obrigatória) -->
+  <!-- Aviso de Orientação de Tela -->
   <div id="rotate-warning">
     <div class="warning-content">
       <span>📱🔄</span>
       <h2>Gire o celular!</h2>
-      <p>Jogue com a tela na horizontal para a melhor experiência de combate.</p>
+      <p>Jogue com a tela na horizontal (paisagem).</p>
     </div>
   </div>
 
   <div id="game-container">
-    <!-- Menu Principal e Seleção de Oponente -->
+    <!-- Canvas Gráfico Principal (Fundo da Luta Ao Vivo) -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Menu Principal Transparente com Luta ao Fundo -->
     <div id="menu-overlay">
-      <h1 class="game-title">CHAMPIONSHIP BOXING</h1>
-      <p class="game-subtitle">Modo Carreira & Circuitos de Elite</p>
+      <h1 class="game-title">🥊 CHAMPIONSHIP BOXING</h1>
+      <p class="game-subtitle">Toque na tela ou pressione iniciar para lutar</p>
       
       <div class="menu-card">
         <label for="opponent-select">ESCOLHER RIVAL:</label>
@@ -47,27 +50,24 @@
       </div>
     </div>
 
-    <!-- Configurações -->
+    <!-- Modal de Configurações -->
     <div id="settings-overlay" class="hidden">
       <div class="settings-card">
         <h2>⚙️ Configurações</h2>
         <div class="setting-row">
-          <span>Efeitos Sonoros 8-Bit</span>
+          <span>Efeitos Sonoros & Música 8-Bit</span>
           <input type="checkbox" id="setting-sound" checked>
         </div>
         <button id="btn-close-settings" class="menu-btn primary">Salvar e Voltar</button>
       </div>
     </div>
 
-    <!-- Fim de Jogo / Contagem do Juiz -->
+    <!-- Modal de Fim de Jogo -->
     <div id="msg-overlay" class="hidden">
       <h1 id="msg-title">KNOCKOUT!</h1>
       <p id="msg-subtitle">VITÓRIA ÉPICA!</p>
-      <button id="btn-restart" class="menu-btn primary">PRÓXIMA LUTA 🥊</button>
+      <button id="btn-restart" class="menu-btn primary">NOVA LUTA 🥊</button>
     </div>
-
-    <!-- Canvas Gráfico Avançado -->
-    <canvas id="gameCanvas"></canvas>
   </div>
 
   <script src="script.js"></script>
