@@ -1,5 +1,5 @@
 /**
- * ULTIMATE RETRO BOXING 360 - CAREER & KNOCKDOWN ENGINE
+ * ULTIMATE RETRO BOXING 360 - LIVE DEMO & FIXED TOUCH ENGINE
  * Senior Game Engine Architect
  */
 
@@ -9,7 +9,7 @@ const ctx = canvas.getContext('2d');
 canvas.width = 640;
 canvas.height = 360;
 
-// --- SINTETIZADOR DE ÁUDIO 8-BIT ---
+// --- SINTETIZADOR DE ÁUDIO & MÚSICA 8-BIT ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 const settings = { sound: true };
@@ -59,7 +59,28 @@ function playSound(type) {
   }
 }
 
-// --- CONFIGURAÇÃO DE OPONENTES DA CARREIRA ---
+// Trilha de Fundo Chiptune
+let musicInterval = null;
+function startBgMusic() {
+  if (musicInterval || !settings.sound) return;
+  const notes = [220, 261, 293, 329, 220, 293, 349, 392];
+  let noteIdx = 0;
+  musicInterval = setInterval(() => {
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(notes[noteIdx], audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.18);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.18);
+    noteIdx = (noteIdx + 1) % notes.length;
+  }, 220);
+}
+
+// --- CONFIGURAÇÃO DE OPONENTES ---
 const opponentsData = [
   { name: 'APOLO', color: '#10b981', primaryColor: '#059669', speed: 2.8, hp: 80, aggression: 0.03 },
   { name: 'BRUTUS', color: '#dc2626', primaryColor: '#b45309', speed: 2.3, hp: 100, aggression: 0.05 },
@@ -68,13 +89,14 @@ const opponentsData = [
 
 let selectedOpponentIndex = 1;
 let gameDifficulty = 'normal';
+let isDemoMode = true; // Luta ao vivo rolando no menu inicial
 
 document.getElementById('btn-start').addEventListener('click', () => {
   playSound('click');
+  startBgMusic();
   selectedOpponentIndex = parseInt(document.getElementById('opponent-select').value);
   gameDifficulty = document.getElementById('difficulty-select').value;
   
-  // Configurar atributos do Rival escolhido
   const data = opponentsData[selectedOpponentIndex];
   cpu.name = data.name;
   cpu.color = data.color;
@@ -83,13 +105,21 @@ document.getElementById('btn-start').addEventListener('click', () => {
   cpu.maxHp = data.hp;
   cpu.hp = data.hp;
 
-  document.getElementById('menu-overlay').classList.add('hidden');
+  player.hp = 100;
+  player.stamina = 100;
+  player.x = 200; player.y = 160;
+  cpu.x = 440; cpu.y = 160;
+
+  isDemoMode = false; // Entra no modo de controle do jogador
   gameOver = false;
   knockdownTimer = 0;
+
+  document.getElementById('menu-overlay').classList.add('hidden');
 });
 
 document.getElementById('btn-settings').addEventListener('click', () => {
   playSound('click');
+  startBgMusic();
   document.getElementById('settings-overlay').classList.remove('hidden');
 });
 
@@ -107,7 +137,7 @@ let knockdownTimer = 0;
 let refereeCount = 0;
 
 function createHitSparks(x, y, color) {
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 10; i++) {
     hitParticles.push({
       x, y,
       vx: (Math.random() - 0.5) * 8,
@@ -124,7 +154,7 @@ function addFloatingText(text, x, y, color = '#facc15') {
 }
 
 // --- ENGINE DE COMBATE ---
-let gameOver = true;
+let gameOver = false;
 let screenShake = 0;
 let timeScale = 1.0;
 let counterWindowTimer = 0;
@@ -165,7 +195,8 @@ class Boxer {
       }
     }
 
-    if (this.isCPU) {
+    // Se for CPU ou se for Modo Demonstrativo do Menu
+    if (this.isCPU || isDemoMode) {
       this.updateAI(opponent);
     }
   }
@@ -175,9 +206,7 @@ class Boxer {
     const dy = player.y - this.y;
     const dist = Math.hypot(dx, dy);
 
-    const aggressionDist = gameDifficulty === 'easy' ? 70 : 55;
-
-    if (dist > aggressionDist && this.state === 'IDLE') {
+    if (dist > 55 && this.state === 'IDLE') {
       this.x += (dx / dist) * this.speed * 0.75;
       this.y += (dy / dist) * this.speed * 0.75;
     } else if (dist < 40 && this.state === 'IDLE') {
@@ -188,9 +217,9 @@ class Boxer {
     this.x = Math.max(120, Math.min(520, this.x));
     this.y = Math.max(90, Math.min(230, this.y));
 
-    const currentAggression = opponentsData[selectedOpponentIndex].aggression * (gameDifficulty === 'easy' ? 0.5 : gameDifficulty === 'hard' ? 1.4 : 1.0);
+    const currentAggression = isDemoMode ? 0.05 : opponentsData[selectedOpponentIndex].aggression;
 
-    if (dist <= 65 && this.state === 'IDLE' && Math.random() < currentAggression) {
+    if (dist <= 68 && this.state === 'IDLE' && Math.random() < currentAggression) {
       const rand = Math.random();
       if (rand < 0.4) this.attack(player, 'JAB');
       else if (rand < 0.7) this.attack(player, 'CROSS');
@@ -199,8 +228,7 @@ class Boxer {
     }
 
     if ((player.state === 'JAB' || player.state === 'CROSS' || player.state === 'HOOK' || player.state === 'UPPERCUT') && this.state === 'IDLE') {
-      const blockChance = gameDifficulty === 'easy' ? 0.2 : gameDifficulty === 'normal' ? 0.4 : 0.65;
-      if (Math.random() < blockChance) this.state = 'BLOCK';
+      if (Math.random() < 0.4) this.state = 'BLOCK';
     }
   }
 
@@ -230,7 +258,7 @@ class Boxer {
   }
 
   isCountering() {
-    return !this.isCPU && counterWindowTimer > 0;
+    return !this.isCPU && !isDemoMode && counterWindowTimer > 0;
   }
 
   dodge() {
@@ -253,15 +281,14 @@ class Boxer {
       this.stamina = Math.max(0, this.stamina - 4);
       playSound('block');
       createHitSparks(this.x, this.y - 20, '#94a3b8');
-      addFloatingText('BLOQUEOU', this.x - 24, this.y - 45, '#94a3b8');
     } else if (this.state === 'DODGE') {
       return;
     } else {
       this.hp -= amount;
       this.state = 'HIT';
       this.animTimer = 0;
-      screenShake = punchType === 'UPPERCUT' || punchType === 'HOOK' ? 14 : 7;
-      screenFlashAlpha = 0.35; // Flash dramático de impacto
+      screenShake = punchType === 'UPPERCUT' || punchType === 'HOOK' ? 12 : 6;
+      screenFlashAlpha = 0.3;
       playSound('hit');
 
       const hitColor = punchType === 'UPPERCUT' ? '#ef4444' : '#facc15';
@@ -270,10 +297,15 @@ class Boxer {
 
       if (this.hp <= 0) {
         this.hp = 0;
-        this.state = 'KO';
-        this.knockdownAnim = 0;
-        playSound('ko');
-        triggerKnockdown(this);
+        if (isDemoMode) {
+          // No modo demo do menu, reinicia vida automaticamente para a luta continuar rolando ao fundo
+          this.hp = 100;
+        } else {
+          this.state = 'KO';
+          this.knockdownAnim = 0;
+          playSound('ko');
+          triggerKnockdown(this);
+        }
       }
     }
   }
@@ -283,7 +315,6 @@ class Boxer {
     const by = this.y;
     const lookingRight = opponent.x > this.x;
 
-    // Sombra Elíptica
     const shadowGrad = ctx.createRadialGradient(bx, by + 35, 2, bx, by + 35, 22);
     shadowGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
     shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -294,7 +325,6 @@ class Boxer {
 
     ctx.save();
 
-    // Se estiver em KO, renderizar animação de queda de costas na lona
     if (this.state === 'KO') {
       this.knockdownAnim = Math.min(this.knockdownAnim + 0.1, 1.0);
       ctx.translate(bx, by + 10);
@@ -315,7 +345,7 @@ class Boxer {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(bx - 15, by + 10, 30, 6);
 
-    // Tronco
+    // Tronco Muscular
     const torsoGrad = ctx.createLinearGradient(bx - 14, by - 22, bx + 14, by - 2);
     torsoGrad.addColorStop(0, this.primaryColor);
     torsoGrad.addColorStop(1, '#b45309');
@@ -332,7 +362,7 @@ class Boxer {
     const eyeOffsetX = lookingRight ? 3 : -6;
     ctx.fillRect(bx + eyeOffsetX, by - 31, 3, 3);
 
-    // Luvas
+    // Luvas de Boxe Realistas
     ctx.fillStyle = this.color;
     const faceDir = lookingRight ? 1 : -1;
 
@@ -360,7 +390,7 @@ class Boxer {
 const player = new Boxer(200, 160, '#2563eb', '#d97706', 'VOCÊ', false);
 const cpu = new Boxer(440, 160, '#dc2626', '#b45309', 'BRUTUS', true);
 
-// Juiz ao Fundo
+// Árbitro
 const referee = {
   x: 320, y: 70,
   draw() {
@@ -373,7 +403,7 @@ const referee = {
   }
 };
 
-// CONTROLES TOUCH E VIRTUAIS NO CANVAS
+// BOTÕES VIRTUAIS E SISTEMA TOUCH CORRIGIDO
 const moveKeys = { up: false, down: false, left: false, right: false };
 
 const virtualButtons = [
@@ -391,10 +421,9 @@ const virtualButtons = [
   { id: 'dodge', x: 530, y: 292, w: 95, h: 38, text: 'DESVIAR ⚡', color: '#7c3aed' }
 ];
 
-function handleTouch(e) {
-  if (gameOver) return;
-  e.preventDefault();
-
+function processTouchInput(e) {
+  if (isDemoMode || gameOver) return;
+  
   moveKeys.up = moveKeys.down = moveKeys.left = moveKeys.right = false;
 
   const rect = canvas.getBoundingClientRect();
@@ -428,13 +457,15 @@ function handleTouch(e) {
   player.state = isBlocking ? 'BLOCK' : (player.state === 'BLOCK' ? 'IDLE' : player.state);
 }
 
-canvas.addEventListener('touchstart', handleTouch);
-canvas.addEventListener('touchmove', handleTouch);
-canvas.addEventListener('touchend', handleTouch);
+// Binds de Toque Direto no Documento e Canvas
+window.addEventListener('touchstart', e => { startBgMusic(); processTouchInput(e); }, { passive: false });
+window.addEventListener('touchmove', processTouchInput, { passive: false });
+window.addEventListener('touchend', processTouchInput, { passive: false });
 
 // Teclado PC
 window.addEventListener('keydown', e => {
-  if (gameOver) return;
+  if (isDemoMode || gameOver) return;
+  startBgMusic();
   const k = e.key.toLowerCase();
   if (k === 'arrowup' || k === 'w') moveKeys.up = true;
   if (k === 'arrowdown' || k === 's') moveKeys.down = true;
@@ -458,7 +489,7 @@ window.addEventListener('keyup', e => {
   if (k === 'h' && player.state === 'BLOCK') player.state = 'IDLE';
 });
 
-// --- RENDERIZAÇÃO GRÁFICA DA ARENA ---
+// --- RENDERIZAÇÃO DA ARENA ---
 let lightPhase = 0;
 
 function renderArena() {
@@ -501,6 +532,8 @@ function renderArena() {
 }
 
 function renderHUD() {
+  if (isDemoMode) return; // Esconde a HUD no modo demo do menu para visual limpo
+
   ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 10px monospace';
   ctx.fillText('P1: VOCÊ', 20, 18);
@@ -531,7 +564,6 @@ function renderHUD() {
     ctx.fillText('⚡ COUNTER WINDOW! ⚡', 240, 46);
   }
 
-  // Contagem do Juiz na tela se houver knockdown
   if (knockdownTimer > 0) {
     ctx.fillStyle = '#ef4444';
     ctx.font = 'bold 24px monospace';
@@ -542,7 +574,7 @@ function renderHUD() {
 }
 
 function renderVirtualButtons() {
-  if (gameOver) return;
+  if (isDemoMode || gameOver) return;
 
   virtualButtons.forEach(btn => {
     ctx.fillStyle = btn.color || '#1e293b';
@@ -566,45 +598,4 @@ function renderEffects() {
   for (let i = hitParticles.length - 1; i >= 0; i--) {
     let p = hitParticles[i];
     p.x += p.vx; p.y += p.vy; p.life -= 0.07;
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = p.life;
-    ctx.fillRect(p.x, p.y, p.size, p.size);
-    if (p.life <= 0) hitParticles.splice(i, 1);
-  }
-
-  for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    let ft = floatingTexts[i];
-    ft.y += ft.vy; ft.life -= 0.035;
-    ctx.fillStyle = ft.color;
-    ctx.font = 'bold 12px monospace';
-    ctx.globalAlpha = ft.life;
-    ctx.fillText(ft.text, ft.x, ft.y);
-    if (ft.life <= 0) floatingTexts.splice(i, 1);
-  }
-
-  // Flash de impacto na tela
-  if (screenFlashAlpha > 0) {
-    ctx.fillStyle = `rgba(239, 68, 68, ${screenFlashAlpha})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    screenFlashAlpha -= 0.05;
-  }
-
-  ctx.globalAlpha = 1.0;
-}
-
-function triggerKnockdown(loser) {
-  knockdownTimer = 180; // quadros de contagem
-  refereeCount = 1;
-  const interval = setInterval(() => {
-    refereeCount++;
-    if (refereeCount > 5 || gameOver) clearInterval(interval);
-  }, 800);
-
-  setTimeout(() => {
-    endGame(loser.isCPU ? "VOCÊ VENCEU POR KO!" : "VOCÊ FOI NOCAUTEADO!");
-  }, 4000);
-}
-
-function endGame(text) {
-  gameOver = true;
-  document.getElementById('msg-subtitle').inne
+                 
