@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Arcane Nature - Remastered</title>
+  <title>Arcane Nature - Elite RPG Edition</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,14 +11,64 @@
   <div id="game-container">
     <canvas id="gameCanvas" width="400" height="300"></canvas>
 
-    <div id="ui-overlay">
+    <!-- HUD Superior do Jogo -->
+    <div id="ui-overlay" class="hidden">
       <div id="status-bar">
-        <span class="badge">🧙‍♂️ MAGO SUPREMO</span>
-        <span id="fps-display">60 FPS</span>
+        <span class="badge" id="player-hp">❤️ HP: 100/100</span>
+        <span id="inventory-display">💎 0/3</span>
+        <span id="time-display">🌅 Dia</span>
+      </div>
+      <div id="quest-tracker">📜 Missão: Fale com o Ancião Eldrin</div>
+    </div>
+
+    <!-- Caixa de Diálogo do RPG -->
+    <div id="dialogue-box" class="hidden">
+      <div id="dialogue-speaker">NPC</div>
+      <div id="dialogue-text">Texto do diálogo...</div>
+      <div id="dialogue-hint">Aperte ✨ para continuar</div>
+    </div>
+
+    <!-- Cutscene Overlay -->
+    <div id="cutscene-overlay">
+      <div class="cutscene-card">
+        <div id="cutscene-title">CAPÍTULO I: O PORTÃO SELADO</div>
+        <p id="cutscene-text"></p>
+        <button id="btn-skip-cutscene">Pular Cutscene ⏩</button>
       </div>
     </div>
 
-    <div id="touch-controls">
+    <!-- Menu Principal Overlay -->
+    <div id="menu-overlay" class="hidden">
+      <h1 class="game-title">ARCANE NATURE</h1>
+      <p class="game-subtitle">Elite RPG Edition</p>
+      <div class="menu-buttons">
+        <button id="btn-start" class="menu-btn primary">🎮 JOGAR</button>
+        <button id="btn-settings" class="menu-btn secondary">⚙️ CONFIGURAÇÕES</button>
+      </div>
+    </div>
+
+    <!-- Modal de Configurações -->
+    <div id="settings-overlay" class="hidden">
+      <div class="settings-card">
+        <h2>⚙️ Configurações</h2>
+        <div class="setting-row">
+          <span>Sons 8-Bit (Sintetizador)</span>
+          <input type="checkbox" id="setting-sound" checked>
+        </div>
+        <div class="setting-row">
+          <span>Efeitos Visuais / Partículas</span>
+          <input type="checkbox" id="setting-particles" checked>
+        </div>
+        <div class="setting-row">
+          <span>Tremer Tela (Screen Shake)</span>
+          <input type="checkbox" id="setting-shake" checked>
+        </div>
+        <button id="btn-close-settings" class="menu-btn primary">Salvar e Voltar</button>
+      </div>
+    </div>
+
+    <!-- Controles Touch para Celular -->
+    <div id="touch-controls" class="hidden">
       <div class="dpad">
         <button id="btn-up" class="dpad-btn up">▲</button>
         <button id="btn-left" class="dpad-btn left">◄</button>
