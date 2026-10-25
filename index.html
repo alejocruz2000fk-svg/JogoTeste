@@ -3,26 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ultimate Retro Boxing 360</title>
+  <title>Ultimate Retro Boxing 360 - Career & Knockdown Edition</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Aviso para Girar Tela -->
+  <!-- Aviso de Orientação (Paisagem Obrigatória) -->
   <div id="rotate-warning">
     <div class="warning-content">
       <span>📱🔄</span>
       <h2>Gire o celular!</h2>
-      <p>Jogue com a tela na horizontal (paisagem).</p>
+      <p>Jogue com a tela na horizontal para a melhor experiência de combate.</p>
     </div>
   </div>
 
   <div id="game-container">
-    <!-- Menu Principal Overlay -->
+    <!-- Menu Principal e Seleção de Oponente -->
     <div id="menu-overlay">
-      <h1 class="game-title">ULTIMATE RETRO BOXING</h1>
-      <p class="game-subtitle">Arena 360° - Canvas Responsivo</p>
+      <h1 class="game-title">CHAMPIONSHIP BOXING</h1>
+      <p class="game-subtitle">Modo Carreira & Circuitos de Elite</p>
       
+      <div class="menu-card">
+        <label for="opponent-select">ESCOLHER RIVAL:</label>
+        <select id="opponent-select">
+          <option value="0">Apolo (Rápido & Ágil)</option>
+          <option value="1" selected>Brutus (Equilibrado)</option>
+          <option value="2">Iron Mike (Lenda / Pesado)</option>
+        </select>
+      </div>
+
       <div class="menu-card">
         <label for="difficulty-select">DIFICULDADE DA IA:</label>
         <select id="difficulty-select">
@@ -33,12 +42,12 @@
       </div>
 
       <div class="menu-buttons">
-        <button id="btn-start" class="menu-btn primary">🎮 INICIAR LUTA</button>
+        <button id="btn-start" class="menu-btn primary">🎮 ENTRAR NO RINGUE</button>
         <button id="btn-settings" class="menu-btn secondary">⚙️ CONFIGURAÇÕES</button>
       </div>
     </div>
 
-    <!-- Configurações Overlay -->
+    <!-- Configurações -->
     <div id="settings-overlay" class="hidden">
       <div class="settings-card">
         <h2>⚙️ Configurações</h2>
@@ -50,14 +59,14 @@
       </div>
     </div>
 
-    <!-- Modal de Fim de Jogo -->
+    <!-- Fim de Jogo / Contagem do Juiz -->
     <div id="msg-overlay" class="hidden">
       <h1 id="msg-title">KNOCKOUT!</h1>
-      <p id="msg-subtitle">VOCÊ VENCEU!</p>
-      <button id="btn-restart" class="menu-btn primary">REVANCHE 🥊</button>
+      <p id="msg-subtitle">VITÓRIA ÉPICA!</p>
+      <button id="btn-restart" class="menu-btn primary">PRÓXIMA LUTA 🥊</button>
     </div>
 
-    <!-- Canvas Único Integrado -->
+    <!-- Canvas Gráfico Avançado -->
     <canvas id="gameCanvas"></canvas>
   </div>
 
